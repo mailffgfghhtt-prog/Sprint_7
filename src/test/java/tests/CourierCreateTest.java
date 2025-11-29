@@ -1,25 +1,23 @@
 package tests;
 
-import helpers.Courier;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import helpers.*;
+import io.restassured.response.Response;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import helpers.ApiClient;
-import helpers.TestData;
-import io.restassured.response.Response;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
-import static steps.StepAnnotations.createCourier;
 
 public class CourierCreateTest {
     private String uniqueLogin;
     private Courier validCourier;
     private Courier courierWithoutFirstName;
-    private static final String BASE_PATH = "/api/v1/courier";
+    private CourierApi courierApi = new CourierApi();
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @Before
-    public void setUp() {
-
+    public void setUp() throws Exception {
         uniqueLogin = TestData.generateUniqueLogin();
         validCourier = new Courier();
         validCourier.setLogin(uniqueLogin);
@@ -35,19 +33,13 @@ public class CourierCreateTest {
     public void tearDown() {
         System.out.println("Starting cleanup for login: " + uniqueLogin);
 
-        Response loginResponse = given()
-                .spec(ApiClient.getRequestSpec())
-                .body("{\"login\": \"" + uniqueLogin + "\", \"password\": \"1234\"}")
-                .post(BASE_PATH + "/login");
+        Response loginResponse = courierApi.loginCourier(uniqueLogin, "1234");
 
         if (loginResponse.statusCode() == 200) {
             int courierId = loginResponse.then().extract().path("id");
             System.out.println("Courier ID found: " + courierId);
 
-            Response deleteResponse = given()
-                    .spec(ApiClient.getRequestSpec())
-                    .delete(BASE_PATH + "/" + courierId);
-
+            Response deleteResponse = courierApi.deleteCourier(courierId);
 
             if (deleteResponse.statusCode() == 200) {
                 System.out.println("Courier deleted successfully.");
@@ -64,77 +56,58 @@ public class CourierCreateTest {
     }
 
     @Test
-    public void successfulCourierCreationReturnsOk() {
-        createCourier(uniqueLogin);
+    public void successfulCourierCreationReturnsOk() throws Exception {
+        Response response = courierApi.createCourier(validCourier);
 
-        given()
-                .spec(ApiClient.getRequestSpec())
-                .body(validCourier)
-                .post(BASE_PATH)
-                .then()
+        response.then()
                 .statusCode(201)
                 .body("ok", equalTo(true));
     }
 
     @Test
-    public void cannotCreateCourierWithDuplicateLogin() {
-        // Сначала создаём курьера
-        given()
-                .spec(ApiClient.getRequestSpec())
-                .body(validCourier)
-                .post(BASE_PATH)
-                .then()
-                .statusCode(201);
+    public void cannotCreateCourierWithDuplicateLogin() throws Exception {
+        // Создаём курьера
+        Response firstResponse = courierApi.createCourier(validCourier);
+        firstResponse.then().statusCode(201);
 
-        // Пытаемся создать курьера с тем же логином
-        given()
-                .spec(ApiClient.getRequestSpec())
-                .body(validCourier)
-                .post(BASE_PATH)
-                .then()
+        // Пытаемся создать с тем же логином
+        Response secondResponse = courierApi.createCourier(validCourier);
+        secondResponse.then()
                 .statusCode(409)
                 .body("message", containsString("Этот логин уже используется. Попробуйте другой."));
     }
 
     @Test
-    public void createCourierWithoutFirstNameIsAllowed() {
-        createCourier(courierWithoutFirstName.getLogin());
+    public void createCourierWithoutFirstNameIsAllowed() throws Exception {
+        Response response = courierApi.createCourier(courierWithoutFirstName);
 
-        given()
-                .spec(ApiClient.getRequestSpec())
-                .body(courierWithoutFirstName)
-                .post(BASE_PATH)
-                .then()
+        response.then()
                 .statusCode(201)
                 .body("ok", equalTo(true));
     }
 
     @Test
-    public void creationWithoutLoginReturnsError() {
+    public void creationWithoutLoginReturnsError() throws Exception {
         Courier courierNoLogin = new Courier();
         courierNoLogin.setPassword("1234");
         courierNoLogin.setFirstName("Test");
 
-        given()
-                .spec(ApiClient.getRequestSpec())
-                .body(courierNoLogin)
-                .post(BASE_PATH)
-                .then()
+        Response response = courierApi.createCourier(courierNoLogin);
+
+        response.then()
                 .statusCode(400)
                 .body("message", containsString("Недостаточно данных для создания учетной записи"));
     }
 
     @Test
-    public void creationWithoutPasswordReturnsError() {
+    public void creationWithoutPasswordReturnsError() throws Exception {
         Courier courierNoPassword = new Courier();
         courierNoPassword.setLogin("testlogin");
         courierNoPassword.setFirstName("Test");
 
-        given()
-                .spec(ApiClient.getRequestSpec())
-                .body(courierNoPassword)
-                .post(BASE_PATH)
-                .then()
+        Response response = courierApi.createCourier(courierNoPassword);
+
+        response.then()
                 .statusCode(400)
                 .body("message", containsString("Недостаточно данных для создания учетной записи"));
     }
