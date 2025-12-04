@@ -1,34 +1,37 @@
 package helpers;
 
-import io.qameta.allure.Step;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.restassured.response.Response;
+import java.util.HashMap;
+import java.util.Map;
 import static io.restassured.RestAssured.given;
-
 public class CourierApi {
-
     private static final String BASE_PATH = "/api/v1/courier";
-
-    @Step("Создание курьера: {courier}")
+    private ObjectMapper objectMapper = new ObjectMapper();
     public Response createCourier(Courier courier) {
-        return given()
-                .spec(ApiClient.getRequestSpec())
-                .body(courier)
-                .post(BASE_PATH);
+        try {
+            String body = objectMapper.writeValueAsString(courier);
+            return given()
+                    .spec(ApiClient.getRequestSpec())
+                    .body(body)
+                    .post(BASE_PATH);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create courier: " + e.getMessage(), e);
+        }
     }
-
-    @Step("Авторизация курьера: логин {login}, пароль {password}")
     public Response loginCourier(String login, String password) {
-        String body = String.format("{\"login\": \"%s\", \"password\": \"%s\"}", login, password);
+        Map<String, String> credentials = new HashMap<>();
+        credentials.put("login", login);
+        credentials.put("password", password);
         return given()
                 .spec(ApiClient.getRequestSpec())
-                .body(body)
-                .post(BASE_PATH + "/login");
+                .body(credentials)
+                .log().all()
+                .post("/api/v1/courier/login");
     }
-
-    @Step("Удаление курьера по ID: {courierId}")
-    public Response deleteCourier(int courierId) {
+    public Response deleteCourier(Integer id) {
         return given()
                 .spec(ApiClient.getRequestSpec())
-                .delete(BASE_PATH + "/" + courierId);
+                .delete(BASE_PATH + "/" + id);
     }
 }
