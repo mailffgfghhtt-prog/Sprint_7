@@ -13,4 +13,10 @@ public class Order {
     private String deliveryDate;
     private String comment;
     private List<String> color;
+    public List<String> getColor() {
+        return color;
+    }
+    public void setColor(List<String> color) {
+        this.color = color;
+    }
 }

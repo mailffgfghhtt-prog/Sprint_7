@@ -26,6 +26,12 @@ public class OrderApi {
         System.out.println("DELETE response: " + response.statusCode() + " | " + response.asString());
         return response;
     }
+    public Response orderCreate(Order order) {
+        return given()
+                .spec(ApiClient.getRequestSpec())
+                .body(order)
+                .post("/api/v1/orders");
+    }
     public Response getOrdersList() {
         return given()
                 .spec(ApiClient.getRequestSpec())
